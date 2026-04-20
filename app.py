@@ -1,43 +1,50 @@
 import streamlit as st
-import yt_dlp
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+import yt_dlp
 
-# 1. DISGUISE: Changes the browser tab and icon
+# DISGUISE: Tab and Header
 st.set_page_config(page_title="Advanced Calculus Review", page_icon="📐")
 st.title("Resource Data Stream")
-st.caption("Student Workspace - AP Statistics Project")
+st.caption("Student Workspace - Semester 2 Project")
 
-# 2. INPUT: Disguised as a source identifier
-url = st.text_input("Enter Document Identifier (URL):", placeholder="Paste source link here...")
+# INPUT
+url = st.text_input("Enter Document Identifier (URL):", placeholder="Paste link here...")
 
 if url:
     try:
-        # Check if it's a YouTube link
+        # Check if it's a Video (YouTube)
         if "youtube.com" in url or "youtu.be" in url:
-            # yt-dlp fetches the video on the SERVER, bypassing iBoss DNS blocks
+            st.info("Streaming from cloud archive...")
             ydl_opts = {'format': 'best[ext=mp4]', 'quiet': True}
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                st.info("Fetching data from cloud archive...")
                 info = ydl.extract_info(url, download=False)
-                # st.video uses the direct stream, bypassing iframe-based blocks
+                # st.video uses a direct stream, NO iframe. iBoss can't block this easily.
                 st.video(info.get('url'))
+        
+        # General Website Proxy
         else:
-            # For general sites: Fetches raw HTML to bypass X-Frame-Options
-            response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+            st.info("Mirroring site content...")
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            # BEAUTIFUL SOUP: This pulls the raw code and "cleans" it
             soup = BeautifulSoup(response.text, 'html.parser')
-            # Fix relative links so images and styles load
+            
+            # Fix relative links so images and styles still load
             for tag in soup.find_all(['img', 'link', 'script', 'a']):
                 attr = 'src' if tag.name in ['img', 'script'] else 'href'
                 if tag.has_attr(attr):
                     tag[attr] = urljoin(url, tag[attr])
-            st.components.v1.html(str(soup), height=800, scrolling=True)
             
-    except Exception as e:
-        st.error("Document not found in archive. Please check the identifier.")
+            # Use raw markdown/HTML injection (NO IFRAME used here)
+            st.markdown(str(soup), unsafe_allow_html=True)
 
-# 3. DISGUISE: Notes section to look like you're working
+    except Exception as e:
+        st.error("Document not found. The server may be blocking the request.")
+
+# DISGUISE: Notes section to look like schoolwork
 st.divider()
-st.text_area("Analysis Summary:", placeholder="Type your observations for the assignment here...")
+st.text_area("Analysis Workspace:", placeholder="Type your findings for the assignment here...")
 st.button("Save to Gradebook")
